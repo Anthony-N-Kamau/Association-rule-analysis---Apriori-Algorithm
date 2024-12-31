@@ -1,0 +1,167 @@
+---
+title: "Assignment Week 1"
+subtitle: "Minor Applied Data Science: Association rule analysis"
+output: html_document
+---
+
+
+The output to be handed in should be in `html`.
+
+The data set in the file `Online Retail BIM.dat` consists of the invoice number
+(first column) and the binary incidence matrix of items that have been sold 
+in the transactions occurring between *01/12/2010* and *09/12/2011* for a 
+UK-based and registered non-store online retail. The company mainly sells 
+unique all-occasion gifts. Many customers of the company are wholesalers.
+The number of transactions is 20511 and the number of disctinct items sold
+is *4175*. Item information is given in the Word document
+`Online Retail Items.docx`.
+
+Use the R program to perform a Market Basket analysis. Save all your files
+in one folder and use R script to save your work. Import the data by executing
+`DAT<-read.table(‘Online Retail BIM.dat’,header=T)`
+
+```{r, message=FALSE}
+DAT <- read.table("Online Retail BIM.dat", header = T)
+```
+
+Load the packages `arules` and `arulesViz`. To be able to analyze the binary 
+incidence matrix using the function `apriori()` it must be of 
+class `transactions`. 
+
+```{r, message=FALSE}
+library(arules)
+library(arulesViz)
+```
+
+First, the binary incidence matrix can be obtained from data frame DAT by 
+removing the first column, which contains the invoice number, and then 
+converting it to a matrix. Save the resulting matrix with name BIM by executing
+`BIM<-as.matrix(DAT[-1])`
+
+```{r}
+BIM <- as.matrix(DAT[-1])
+```
+
+Next, the matrix is made of class transactions by executing
+`BIM<-as(BIM,‘transactions’)`
+
+```{r}
+BIM <- as(BIM, "transactions")
+```
+
+BIM can now be used to find association rules.
+
+**1. Plot the relative frequencies (the support) of the items and determine 
+which three items have been sold most often.**
+
+```{r}
+itemFrequencyPlot(BIM,topN=3,type="relative", main="Rel. Item Freq. Plot")
+
+# WHITE HANGING HEART T-LIGHT HOLDER[i3978], JUMBO BAG RED RETROSPOT [i1919] 
+# and REGENCY CAKESTAND 3 TIER [i2952] have the top 3 highest relative frequency
+```
+
+**2. Determine which two association rules containing only two items have the 
+highest support. Be aware of the defaults of the function apriori(). These 
+defaults can be checked by executing ?apriori and reading the text for the 
+parameter argument.**
+
+```{r, warning=FALSE}
+rules_2_items <- apriori(BIM, parameter = list(supp = .01,
+                                       conf = .5,
+                                       minlen = 2,
+                                      maxlen = 2))
+
+inspect(sort(rules_2_items, decreasing = T, by = "support")[1:5])
+
+# items {i1917, i1919} have the highest support of 0.0402. 
+# Their names are {JUMBO BAG PINK POLKADOT, JUMBO BAG RED RETROSPOT}
+
+```
+
+**3. How many items does the association rule with the highest confidence 
+contain?**
+
+```{r}
+highest_confidence <- apriori(BIM, parameter = list(supp = .01,
+                                       conf = .5,
+                                       minlen = 2,
+                                      maxlen = 10))
+
+
+
+
+inspect(sort(highest_confidence, decreasing = T, by = "confidence")[1:5])
+
+# Association with the highest confidence of 0.9587 contains 3 items which
+# are antecedents (i1884, i3617) and consequent i1151 
+
+# Antecedent names are {JAM MAKING SET PRINTED, SUKI  SHOULDER BAG} and the
+# Consequent name is DOTCOM POSTAGE
+```
+
+**4. Which items are important antecedents of item 4050? What does this mean?**
+
+```{r}
+antecedent_4050 <- apriori(BIM, parameter = list(supp = .01,
+                                                 conf = .5, 
+                                                 minlen = 2),
+                           appearance = list(default = "lhs",rhs="i4050"))
+
+inspect(head(sort(antecedent_4050, decreasing = T, by = "confidence")))
+# Antecedents are the items that appear on the left-hand side of an 
+# association rule. They are also called premise or the condition of the rule 
+# and are used to predict the consequent
+
+# items i4042 and i4049 are important antecedents of i4050 because they have 
+# the highest confidence.
+
+# A purchase of antecedents WOODEN HEART CHRISTMAS SCANDINAVIAN and WOODEN STAR 
+# CHRISTMAS SCANDINAVIAN most likely leads to a purchase of consequent 
+# WOODEN TREE CHRISTMAS SCANDINAVIAN
+```
+
+
+**5. Which items are important consequents of item 1655? What does this mean?**
+
+```{r}
+consequent_1655 <- apriori(BIM, parameter = list(supp = 0.01,
+                                                 conf = 0.1),
+                           appearance = list(lhs = "i1655", default = "rhs"))
+
+inspect(head(sort(consequent_1655, decreasing = T, by = "confidence")))
+# Consequent are the items that appear on the right-hand side of an 
+# association rule. They are also called the conclusion or the outcome of 
+# the rule. They are predicted by the antecedent.
+
+#A purchase of item i1655 most likely leads to a purchase of all these items 
+#in the rhs specifically item i3051 which has the highest confidence of 0.7566
+
+# A purchase of antecedent GREEN REGENCY TEACUP AND SAUCER most likely leads 
+# to a purchase of consequent ROSES REGENCY TEACUP AND SAUCER
+```
+
+**6. Are there two items that are substitute to each other? Why?**
+
+```{r}
+item_substitutes <- apriori(BIM, parameter = list(supp = 0.01,
+                                             conf = 0.5))
+
+inspect(head(sort(item_substitutes, decreasing = F, by = 'lift')))
+
+#No items are substitutes for each other as no combinations have a 
+# lift less than 1
+```
+
+**7. Make a scatter plot and a two-key plot for association rules with minimum 
+support 0.01 and minimum confidence 0.5.**
+
+```{r, message=FALSE}
+rules_plot <- apriori(BIM, parameter = list(support = 0.01, 
+                                            confidence = 0.5))
+
+plot(rules_plot, measure = c("support", "confidence"), shading = "lift")
+
+plot(rules_plot, method = "two-key plot")
+```
+
